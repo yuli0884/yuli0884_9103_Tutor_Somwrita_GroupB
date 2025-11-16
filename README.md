@@ -15,6 +15,7 @@ I added an E + click feature by using mousePressed() and createOverlayStripeAtCl
 ## 5.	Inspiration behind my design
 This work is inspired by simple interactive drawing tools, where small inputs create surprisingly complex visuals. I also drew influence from Nasreen Mohamedi’s instruction-based art, which treats the viewer or system as part of the creative process, and from architectural line drawings, which inspired the clean geometry and limited angles. These references shaped the minimalist and rule based visual language of my animation.
 everything to keep the drawing consistent.
+<img width="1197" height="708" alt="Picture" src="https://github.com/user-attachments/assets/6aaa98be-13a9-448e-a85f-5f3b1c66c8b3" />
 
 # Reference link:
 
