@@ -4,13 +4,13 @@ let scale;
 let canvas = 800;
 let bgColor = [247, 241, 219];
 
-let stripes = [];          // all stripes (black + background)
-let stripeCenters = [];    // store stripe centers
-let basePoints = [];       // grid base points for even layout
-let currentStripe = 0;     // index of stripe being animated
+let stripes = [];          
+let stripeCenters = [];    
+let basePoints = [];       
+let currentStripe = 0;     
 let layer2Drawn = false;
 
-const numGroups = 500;     // auto stripes count = 500
+const numGroups = 100;
 const firstLayerGroups = Math.floor(numGroups * 0.7);
 
 let mainHiddenLineStripe;
@@ -20,7 +20,11 @@ let eHeld = false;
 let mainAngle;
 let autoAngles = [];
 
-// Scaling Setup
+const ANGLE_EPS = 2;
+const MIN_OVERLAP_ANGLE = 10;
+
+
+// Scaling 
 function adjustStrokeAndScale() {
   baseSize = (windowWidth + windowHeight) / 2;
   scale = baseSize / canvas;
@@ -28,14 +32,17 @@ function adjustStrokeAndScale() {
 }
 
 
-// Fallback base point (used rarely)
+
 function getNewStripeBasePoint() {
-  const minDist = 160 * scale;
+  const minDist = 130 * scale; 
+  const rx = width * 0.4;   // 0.4 * 2 = 0.8
+  const ry = height * 0.4;
+
   let x = 0, y = 0;
 
   for (let attempt = 0; attempt < 50; attempt++) {
-    x = random(-width / 2, width / 2);
-    y = random(-height / 2, height / 2);
+    x = random(-rx, rx);
+    y = random(-ry, ry);
 
     let ok = true;
     for (let c of stripeCenters) {
@@ -46,12 +53,13 @@ function getNewStripeBasePoint() {
     }
     if (ok) break;
   }
+
   return { x, y };
 }
 
 
 
-// Background overlay stripe aligned to a black stripe
+// Stripe Creation 
 function createBgOverlayAlignedToStripe(base) {
   let linesData = [];
 
@@ -65,14 +73,13 @@ function createBgOverlayAlignedToStripe(base) {
 
   let idx = 0;
   for (let l of base.data) {
-    // keep every second line to make spacing larger
     if (idx % 2 === 0) {
       linesData.push({
         x1: l.x1 + perpX * offsetAmount,
         y1: l.y1 + perpY * offsetAmount,
         x2: l.x2 + perpX * offsetAmount,
         y2: l.y2 + perpY * offsetAmount,
-        weight: l.weight * 3,      // thicker background line
+        weight: l.weight * 3,
         color: color(bgColor),
         length: l.length
       });
@@ -87,13 +94,13 @@ function createBgOverlayAlignedToStripe(base) {
   });
 }
 
-// Auto Stripe (90°, 45°, -45°) with ~5% background
-function createLineGroups() {
 
-  const isBgStripe = random() < 0.05;   // ~5% background stripes
+
+
+function createLineGroups() {
+  const isBgStripe = random() < 0.05;
   const baseAngles = [90, 45, -45];
 
-  // some background stripes follow an existing black stripe
   if (isBgStripe) {
     const blacks = stripes.filter(s => !s.isBg);
     if (blacks.length > 0 && random() < 0.5) {
@@ -105,22 +112,15 @@ function createLineGroups() {
   let angleDeg = autoAngles.length > 0 ? autoAngles.pop() : random(baseAngles);
   let lineColor = isBgStripe ? color(bgColor) : color(0);
 
-  // base position from grid or fallback
   let basePoint = basePoints.length > 0 ? basePoints.pop() : getNewStripeBasePoint();
 
-  // small parallel shift to avoid being too rigid
   let shiftAmount = random(5, 12);
-  let shiftX = 0, shiftY = 0;
-  let dir = floor(random(4));
-  if (dir === 0) shiftX = shiftAmount;
-  if (dir === 1) shiftX = -shiftAmount;
-  if (dir === 2) shiftY = shiftAmount;
-  if (dir === 3) shiftY = -shiftAmount;
+  let shiftX = random([-shiftAmount, shiftAmount]);
+  let shiftY = random([-shiftAmount, shiftAmount]);
 
   const x1 = basePoint.x + shiftX;
   const y1 = basePoint.y + shiftY;
 
-  // longer stripes to go out of canvas
   const lineLength = random(120, 260) * scale;
   const dirX = cos(angleDeg);
   const dirY = sin(angleDeg);
@@ -132,10 +132,7 @@ function createLineGroups() {
   const perpY = dirX;
 
   let numLines = floor(random(8, 20));
-
-  // base spacing
   let spacingBase = random(3, 8) * scale;
-  // background stripes have bigger spacing
   let spacing = isBgStripe ? spacingBase * 2 : spacingBase;
 
   for (let i = 0; i < numLines; i++) {
@@ -168,7 +165,7 @@ function createLineGroups() {
 
 
 
-// Hidden Layer Stripe (Layer 2)
+// Hidden Main Line 
 function createMainHiddenLine() {
   let angle = random([45, -45]);
   let y1 = -height / 2;
@@ -188,13 +185,13 @@ function createMainHiddenLine() {
 }
 
 
-// Stripe from E + Click (black, 90/45/-45)
+
+// Overlay on Click
 function createOverlayStripeAtClick(cx, cy) {
   let linesData = [];
   const angleDeg = random([90, 45, -45]);
 
   let lineLength = random(150, 300) * scale;
-
   let dirX = cos(angleDeg);
   let dirY = sin(angleDeg);
 
@@ -231,13 +228,13 @@ function createOverlayStripeAtClick(cx, cy) {
   return new LineStripe({
     lines: linesData,
     isBg: false,
-    angleDeg: angleDeg
+    angleDeg
   });
 }
 
 
 
-// Stripe Animation Class
+// Stripe Class 
 class LineStripe {
   constructor(g) {
     this.data = g.lines;
@@ -247,6 +244,14 @@ class LineStripe {
     this.done = false;
     this.isBg = g.isBg;
     this.angleDeg = g.angleDeg;
+
+    const l = g.lines[0];
+    this.x1 = l.x1;
+    this.y1 = l.y1;
+    this.x2 = l.x2;
+    this.y2 = l.y2;
+    this.cx = (l.x1 + l.x2) / 2;
+    this.cy = (l.y1 + l.y2) / 2;
   }
 
   displayStep() {
@@ -278,7 +283,63 @@ class LineStripe {
 
 
 
-// Reset Drawing
+// Angle + Overlap Rules 
+function angleDiff(a1, a2) {
+  let diff = abs(a1 - a2) % 360;
+  if (diff > 180) diff = 360 - diff;
+  return diff;
+}
+
+function segmentIntersection(x1, y1, x2, y2, x3, y3, x4, y4) {
+  const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (abs(denom) < 0.0001) return null;
+
+  const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+  const u = ((x1 - x3) * (y1 - y2) - (y1 - y3) * (x1 - x2)) / denom;
+
+  if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+    return {
+      x: x1 + t * (x2 - x1),
+      y: y1 + t * (y2 - y1)
+    };
+  }
+  return null;
+}
+
+
+function canOverlap(stripeA, stripeB) {
+  const p = segmentIntersection(
+    stripeA.x1, stripeA.y1, stripeA.x2, stripeA.y2,
+    stripeB.x1, stripeB.y1, stripeB.x2, stripeB.y2
+  );
+
+  if (!p) return true;
+
+  const diff = angleDiff(stripeA.angleDeg, stripeB.angleDeg);
+
+  if (diff < ANGLE_EPS) {
+    const dA = dist(p.x, p.y, stripeA.cx, stripeA.cy);
+    const dB = dist(p.x, p.y, stripeB.cx, stripeB.cy);
+
+    return (dA < stripeA.maxLen * 0.4) && (dB < stripeB.maxLen * 0.4);
+  }
+
+  return diff > MIN_OVERLAP_ANGLE;
+}
+
+
+function isStripeValid(newStripe) {
+  for (let s of stripes) {
+    if (!canOverlap(newStripe, s)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+
+// Reset Sketch 
 function resetSketch() {
   background(bgColor);
   stripes = [];
@@ -288,9 +349,8 @@ function resetSketch() {
   currentStripe = 0;
   layer2Drawn = false;
 
-  // make angles even: 90 / 45 / -45
   const baseAngles = [90, 45, -45];
-  let per = Math.floor(numGroups / 3);
+  let per = floor(numGroups / 3);
   let rem = numGroups - per * 3;
 
   for (let a of baseAngles) {
@@ -300,27 +360,34 @@ function resetSketch() {
 
   shuffle(autoAngles, true);
 
-  // grid layout with margin so stripes can extend out of canvas
-  const cols = 18; // grid columns
-  const rows = Math.ceil(numGroups / cols);
-  const marginX = width * 0.2;
-  const marginY = height * 0.2;
+  const cxw = width * 0.8;
+  const cyh = height * 0.8;
+
+  const cols = 14;
+  const rows = ceil(numGroups / cols);
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (basePoints.length >= numGroups) break;
+
       basePoints.push({
-        x: map(c + 0.5, 0, cols, -width / 2 - marginX, width / 2 + marginX),
-        y: map(r + 0.5, 0, rows, -height / 2 - marginY, height / 2 + marginY)
+        x: map(c + 0.5, 0, cols, -cxw / 2, cxw / 2),
+        y: map(r + 0.5, 0, rows, -cyh / 2, cyh / 2)
       });
     }
   }
 
   shuffle(basePoints, true);
 
-  // create auto stripes
   for (let g = 0; g < numGroups; g++) {
-    stripes.push(createLineGroups());
+    let tries = 0;
+    let stripe;
+    do {
+      stripe = createLineGroups();
+      tries++;
+    } while (!isStripeValid(stripe) && tries < 40);
+
+    if (isStripeValid(stripe)) stripes.push(stripe);
   }
 
   mainHiddenLineStripe = createMainHiddenLine();
@@ -328,7 +395,7 @@ function resetSketch() {
 
 
 
-// Setup
+// Setup 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   angleMode(DEGREES);
@@ -341,7 +408,7 @@ function setup() {
 
 
 
-// Draw Loop
+// Draw 
 function draw() {
   translate(width / 2, height / 2);
 
@@ -358,18 +425,18 @@ function draw() {
 
 
 
-// Keyboard Controls
+// Controls 
 function keyPressed() {
-  if (key === ' ') speedMultiplier = speedMultiplier === 0 ? 1 : 0; // pause / continue
-  if (key === 'f' || key === 'F') speedMultiplier = 2;              // faster
-  if (key === 's' || key === 'S') speedMultiplier = 0.5;            // slower
+  if (key === ' ') speedMultiplier = speedMultiplier === 0 ? 1 : 0;
+  if (key === 'f' || key === 'F') speedMultiplier = 2;
+  if (key === 's' || key === 'S') speedMultiplier = 0.5;
 
   if (key === 'r' || key === 'R') {
     resetSketch();
     speedMultiplier = 1;
   }
 
-  if (key === 'e' || key === 'E') eHeld = true;                     // hold E
+  if (key === 'e' || key === 'E') eHeld = true;
 }
 
 function keyReleased() {
@@ -378,19 +445,20 @@ function keyReleased() {
 
 
 
-// Mouse: E + Click = new stripe
 function mousePressed() {
   if (eHeld) {
     let cx = mouseX - width / 2;
     let cy = mouseY - height / 2;
+
     let overlay = createOverlayStripeAtClick(cx, cy);
-    stripes.splice(currentStripe + 1, 0, overlay);
+    if (isStripeValid(overlay)) {
+      stripes.splice(currentStripe + 1, 0, overlay);
+    }
   }
 }
 
 
 
-// Resize Window
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   adjustStrokeAndScale();
