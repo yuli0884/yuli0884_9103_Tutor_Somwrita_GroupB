@@ -10,7 +10,7 @@ let basePoints = [];
 let currentStripe = 0;     
 let layer2Drawn = false;
 
-const numGroups = 500;
+const numGroups = 470;
 const firstLayerGroups = Math.floor(numGroups * 0.7);
 
 let mainHiddenLineStripe;
