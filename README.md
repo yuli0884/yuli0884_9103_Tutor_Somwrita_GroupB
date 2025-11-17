@@ -1,4 +1,5 @@
 # Individual-project
+## Group Link: https://github.com/nuonuo20508/group
 ## 1.	How to use the work
 - Hold E + click: Add a new stripe where you click.
 - Space: Pause and play.
